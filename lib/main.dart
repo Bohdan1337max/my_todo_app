@@ -98,13 +98,64 @@ class _MainPageState extends State<MainPage> {
       shape: RoundedRectangleBorder(borderRadius: 
       BorderRadius.circular(8)),
       child: ListTile(
+        onTap: () => showAlertDialog(context, todo),
         title: Text(todo.title),
         subtitle: Text(todo.date.toIso8601String()),
       ),
     ),
+
   );
 }
 
+showAlertDialog(BuildContext context, Todo todo){
+  DateTime dateTime = DateTime.now();
+  final controllerTitle = TextEditingController();
+  final controllerBody = TextEditingController();
+
+  AlertDialog alert = AlertDialog(
+    title: TextField(
+      controller: controllerTitle,
+      style: TextStyle(fontSize: 30),
+      decoration: InputDecoration(
+        border:  InputBorder.none,
+        hintText: todo.title,
+        hintStyle: TextStyle(
+          fontSize: 30.0,
+          fontWeight: FontWeight.bold,
+        )
+      ) ,
+    ),
+      content: SizedBox(
+        height: 250,
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintText: todo.body),
+              ),
+              SizedBox(
+                width: 320.0,
+                child: FloatingActionButton(
+                  onPressed: () {},
+                  child: Text(
+                    "Save",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              )
+            ],
+          ),
+        ),
+  )
+  );
+  showDialog(context: context, builder: (BuildContext context) => alert);
+
+}
 
 Stream<List<Todo>> readTodo() => FirebaseFirestore.instance.collection('Todos')
 .snapshots()

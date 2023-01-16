@@ -44,14 +44,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      initialRoute: '/MainPage',
-        routes: {
-        '/MainPage' : (context) => const MainPage(),
-          '/AddTodoPage' : (context) => const TodoCreatePage()
-        },
         theme: ThemeData(
           primarySwatch: Colors.green,
         ),
+      home: MainPage(),
     );
   }
 }
@@ -71,7 +67,8 @@ class _MainPageState extends State<MainPage> {
     ),
     floatingActionButton: FloatingActionButton(onPressed:
     () {
-      Navigator.pushNamed(context,'/AddTodoPage');
+      Navigator.push(context,
+      MaterialPageRoute(builder: (context) => const TodoCreatePage()));
     },
       child:  Icon(Icons.add)
     ),
@@ -93,68 +90,129 @@ class _MainPageState extends State<MainPage> {
   );
   Widget buildTodo(Todo todo) => Dismissible(
     key: Key(todo.id),
+    onDismissed: (direction) {deleteTodo(todo);},
     child: Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: 
       BorderRadius.circular(8)),
       child: ListTile(
-        onTap: () => showAlertDialog(context, todo),
+        trailing: IconButton(icon: Icon(Icons.delete), color: Colors.red ,
+        onPressed: () {
+          deleteTodo(todo);
+        },),
+        onTap: () => Navigator.push(context,
+        MaterialPageRoute(builder: (context) => AlertDialogHandler(todo: todo))),
         title: Text(todo.title),
         subtitle: Text(todo.date.toIso8601String()),
       ),
     ),
-
   );
+  Future deleteTodo (Todo todo) async {
+    final docTodo = FirebaseFirestore.instance.collection('Todos').doc(todo.id);
+    await docTodo.delete();
+  }
 }
 
-showAlertDialog(BuildContext context, Todo todo){
+class AlertDialogHandler extends StatefulWidget {
+  const AlertDialogHandler({super.key, required this.todo});
+  final Todo todo;
+  @override
+  State<AlertDialogHandler> createState() => _AlertDialogHandlerState();
+}
+
+class _AlertDialogHandlerState extends State<AlertDialogHandler> {
+
   DateTime dateTime = DateTime.now();
   final controllerTitle = TextEditingController();
   final controllerBody = TextEditingController();
 
-  AlertDialog alert = AlertDialog(
-    title: TextField(
-      controller: controllerTitle,
-      style: TextStyle(fontSize: 30),
-      decoration: InputDecoration(
-        border:  InputBorder.none,
-        hintText: todo.title,
-        hintStyle: TextStyle(
-          fontSize: 30.0,
-          fontWeight: FontWeight.bold,
-        )
-      ) ,
-    ),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: showAlertDialog(context),
+    );
+  }
+  
+  Future<DateTime?> pickDate() => showDatePicker(
+      context: context,
+      initialDate: widget.todo.date,
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2100)
+  );
+
+    showAlertDialog(BuildContext context){
+    AlertDialog alert = AlertDialog(
+      title: TextField(
+        controller: controllerTitle,
+        style: TextStyle(fontSize: 30),
+        decoration: InputDecoration(
+            border:  InputBorder.none,
+            hintText: widget.todo.title,
+            hintStyle: TextStyle(
+              fontSize: 30.0,
+              fontWeight: FontWeight.bold,
+            )
+        ) ,
+      ),
       content: SizedBox(
-        height: 250,
+        height: 200,
         child: Padding(
           padding: const EdgeInsets.all(12.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child:
+          Column(
             children: [
               TextField(
+                controller: controllerBody,
                 decoration: InputDecoration(
+                  hintText: widget.todo.body,
                     border: InputBorder.none,
-                    hintText: todo.body),
+                   ),
+                minLines: 1,
+                maxLines: 5,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
               ),
-              SizedBox(
-                width: 320.0,
-                child: FloatingActionButton(
-                  onPressed: () {},
-                  child: Text(
-                    "Save",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              )
+
+              ElevatedButton(
+                  onPressed: () async {
+                    final date = await pickDate();
+                    if (date == null) return;
+                    setState(() => dateTime = date);
+                  },
+                  child: Text('${dateTime.year}/'
+                      '${dateTime.month}/'
+                      '${dateTime.day}')
+              ),
             ],
           ),
         ),
-  )
-  );
-  showDialog(context: context, builder: (BuildContext context) => alert);
+      ),
 
+      actions: [
+        FloatingActionButton(onPressed: () {
+          final docTodo =
+          FirebaseFirestore.instance.collection('Todos').doc(widget.todo.id);
+          docTodo.update({'date' : dateTime});
+          if(controllerTitle.text.isNotEmpty )
+            {
+              docTodo.update({'title' : controllerTitle.text} );
+            } else if (widget.todo.body != controllerBody.text
+              && controllerBody.text.isNotEmpty){
+            docTodo.update({'body' : controllerBody.text});
+          }
+
+          Navigator.push(context, 
+          MaterialPageRoute(builder: (context) => const MainPage() ));
+        },
+          child: Icon(Icons.save),
+        )
+      ],
+    );
+
+     Future.delayed(Duration.zero, () {
+       showDialog(context: context, builder: (BuildContext context) => alert);
+     });
+  }
 }
 
 Stream<List<Todo>> readTodo() => FirebaseFirestore.instance.collection('Todos')
@@ -248,6 +306,8 @@ class _TodoCreatePageState extends State<TodoCreatePage> {
       lastDate: DateTime(2100)
   );
 }
+
+
 
 
 
